@@ -28,16 +28,17 @@ export const useWorkoutData = () => {
       setLoading(true);
       setError(null);
       try {
-        const workoutsRes = await fetch('/api/workouts');
+        const workoutsRes = await fetch('/api/workouts.php');
         if (!workoutsRes.ok) throw new Error(`HTTP ${workoutsRes.status}`);
         const data = await workoutsRes.json();
-        // Production returns { workouts: [], last_weights: {} }
         setHistory(data.workouts || []);
-        
-        // last_weights is {} (object) in production
-        setLastUsedWeights(data.last_weights || {});
 
-        const typesRes = await fetch('/api/exercise-types');
+        const weightsRes = await fetch('/api/last-weights.php');
+        if (!weightsRes.ok) throw new Error(`HTTP ${weightsRes.status}`);
+        const weights = await weightsRes.json();
+        setLastUsedWeights(weights);
+
+        const typesRes = await fetch('/api/exercise-types.php');
         if (!typesRes.ok) throw new Error(`HTTP ${typesRes.status}`);
         const types = await typesRes.json();
         setExerciseTypes(types || []);
@@ -53,14 +54,14 @@ export const useWorkoutData = () => {
 
   const addWorkoutSession = async (session: { exercises: Omit<Exercise, 'total_reps' | 'total_volume' | 'exercise_type'>[] }) => {
     try {
-      const res = await fetch('/api/workouts', {
+      const res = await fetch('/api/workouts.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(session)
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       // Refresh
-      const updated = await fetch('/api/workouts').then(r => r.json());
+      const updated = await fetch('/api/workouts.php').then(r => r.json());
       setHistory(updated.workouts || []);
     } catch (err) {
       console.error('Failed to save workout', err);
