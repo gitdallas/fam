@@ -12,27 +12,31 @@ import {
   Label,
   Card,
   CardBody,
-  CardTitle
+  CardTitle,
+  Spinner
 } from '@patternfly/react-core';
 import { ArrowRightIcon } from '@patternfly/react-icons';
 import { useWorkoutData } from '../hooks/useWorkoutData';
 
 const NewWorkout: React.FC = () => {
   const navigate = useNavigate();
-  const { exerciseTypes, lastUsedWeights, addWorkoutSession, updateLastUsedWeight } = useWorkoutData();
+  const { exerciseTypes, lastUsedWeights, addWorkoutSession, updateLastUsedWeight, loading, error } = useWorkoutData();
 
   const [currentSession, setCurrentSession] = useState<any[]>([]);
-  const [remaining, setRemaining] = useState<number[]>(exerciseTypes.map(et => et.id));
+  const [remaining, setRemaining] = useState<number[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [weight, setWeight] = useState(225);
   const [reps, setReps] = useState(10);
   const [sets, setSets] = useState<number[]>([]);
 
+  // Reset on mount and when exerciseTypes load
   useEffect(() => {
-    setRemaining(exerciseTypes.map(et => et.id));
-    setCurrentSession([]);
-    setSelectedId(null);
-    setSets([]);
+    if (exerciseTypes.length > 0) {
+      setRemaining(exerciseTypes.map(et => et.id));
+      setCurrentSession([]);
+      setSelectedId(null);
+      setSets([]);
+    }
   }, [exerciseTypes]);
 
   const selectedName = exerciseTypes.find(et => et.id === selectedId)?.name || '';
@@ -40,8 +44,7 @@ const NewWorkout: React.FC = () => {
   const startExercise = (typeId: number) => {
     setSelectedId(typeId);
     setWeight(lastUsedWeights[typeId] || 225);
-    // Default reps could come from exercise_types if you add default_reps column later
-    setReps(10); // fallback
+    setReps(10); // fallback; can pull from DB later
     setSets([]);
   };
 
@@ -105,7 +108,16 @@ const NewWorkout: React.FC = () => {
         New Workout
       </Title>
 
-      {selectedId ? (
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '4rem 0' }}>
+          <Spinner />
+          <p style={{ marginTop: '1rem' }}>Loading exercises...</p>
+        </div>
+      ) : error ? (
+        <div style={{ color: 'red', textAlign: 'center', padding: '4rem 0' }}>
+          Error loading exercises: {error}
+        </div>
+      ) : selectedId ? (
         <div>
           <Card isCompact isPlain>
             <CardTitle>{selectedName}</CardTitle>
@@ -141,7 +153,9 @@ const NewWorkout: React.FC = () => {
                 </FlexItem>
 
                 <FlexItem>
-                  <Label color="blue">Sets added: {sets.length > 0 ? sets.join(' ') : '—'}</Label>
+                  <Label color="blue">
+                    Sets added: {sets.length > 0 ? sets.join(' ') : '—'}
+                  </Label>
                 </FlexItem>
 
                 <Flex justifyContent={{ default: 'justifyContentFlexEnd' }} gap={{ default: 'gapMd' }}>
@@ -165,18 +179,23 @@ const NewWorkout: React.FC = () => {
       ) : (
         <div>
           <p style={{ marginBottom: '1rem' }}>Choose next exercise:</p>
-          <Flex wrap="wrap" gap={{ default: 'gapMd' }}>
-            {remaining.map(typeId => {
-              const type = exerciseTypes.find(et => et.id === typeId);
-              return type ? (
-                <Button key={typeId} variant="secondary" onClick={() => startExercise(typeId)}>
-                  {type.name}
-                </Button>
-              ) : null;
-            })}
-          </Flex>
 
-          {remaining.length === 0 && (
+          {exerciseTypes.length === 0 ? (
+            <p>No exercises available. Contact admin to add some!</p>
+          ) : (
+            <Flex wrap="wrap" gap={{ default: 'gapMd' }}>
+              {remaining.map(typeId => {
+                const type = exerciseTypes.find(et => et.id === typeId);
+                return type ? (
+                  <Button key={typeId} variant="secondary" onClick={() => startExercise(typeId)}>
+                    {type.name}
+                  </Button>
+                ) : null;
+              })}
+            </Flex>
+          )}
+
+          {remaining.length === 0 && exerciseTypes.length > 0 && (
             <p style={{ marginTop: '1rem', color: 'var(--pf-v6-global--success-color--100)' }}>
               All exercises completed! Ready to finish.
             </p>
