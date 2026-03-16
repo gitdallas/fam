@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 export interface Exercise {
   exercise_type_id: number;
-  exercise_type?: { name: string }; // populated by mock / future backend
+  exercise_type?: { name: string };
   weight_lbs: number;
   sets: number[];
   total_reps: number;
@@ -20,29 +20,32 @@ export const useWorkoutData = () => {
   const [history, setHistory] = useState<WorkoutSession[]>([]);
   const [lastUsedWeights, setLastUsedWeights] = useState<Record<number, number>>({});
   const [exerciseTypes, setExerciseTypes] = useState<{ id: number; name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
+      setError(null);
       try {
         const workoutsRes = await fetch('/api/workouts');
-        if (workoutsRes.ok) {
-          const data = await workoutsRes.json();
-          setHistory(data);
-        }
-
-        const weightsRes = await fetch('/api/last-weights');
-        if (weightsRes.ok) {
-          const weights = await weightsRes.json();
-          setLastUsedWeights(weights);
-        }
+        if (!workoutsRes.ok) throw new Error(`HTTP ${workoutsRes.status}`);
+        const data = await workoutsRes.json();
+        // Production returns { workouts: [], last_weights: {} }
+        setHistory(data.workouts || []);
+        
+        // last_weights is {} (object) in production
+        setLastUsedWeights(data.last_weights || {});
 
         const typesRes = await fetch('/api/exercise-types');
-        if (typesRes.ok) {
-          const types = await typesRes.json();
-          setExerciseTypes(types);
-        }
+        if (!typesRes.ok) throw new Error(`HTTP ${typesRes.status}`);
+        const types = await typesRes.json();
+        setExerciseTypes(types || []);
       } catch (err) {
-        console.error('Failed to load data', err);
+        setError((err as Error).message || 'Failed to load data');
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
@@ -55,11 +58,10 @@ export const useWorkoutData = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(session)
       });
-      if (res.ok) {
-        // Refresh history
-        const updated = await fetch('/api/workouts').then(r => r.json());
-        setHistory(updated);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // Refresh
+      const updated = await fetch('/api/workouts').then(r => r.json());
+      setHistory(updated.workouts || []);
     } catch (err) {
       console.error('Failed to save workout', err);
     }
@@ -74,6 +76,8 @@ export const useWorkoutData = () => {
     lastUsedWeights,
     exerciseTypes,
     addWorkoutSession,
-    updateLastUsedWeight
+    updateLastUsedWeight,
+    loading,
+    error
   };
 };
