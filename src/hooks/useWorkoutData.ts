@@ -28,27 +28,44 @@ export const useWorkoutData = () => {
       setLoading(true);
       setError(null);
       try {
+        // Fetch workouts
         const workoutsRes = await fetch('/api/workouts.php');
-        if (!workoutsRes.ok) throw new Error(`HTTP ${workoutsRes.status}`);
-        const data = await workoutsRes.json();
-        setHistory(data.workouts || []);
+        if (!workoutsRes.ok) {
+          throw new Error(`Failed to fetch workouts: HTTP ${workoutsRes.status}`);
+        }
+        const workoutsData = await workoutsRes.json();
+        setHistory(workoutsData.workouts || []);
 
-        const weightsRes = await fetch('/api/last-weights.php');
-        if (!weightsRes.ok) throw new Error(`HTTP ${weightsRes.status}`);
-        const weights = await weightsRes.json();
+        // Fetch exercise types (includes last_weight_lbs for prefill)
+        const typesRes = await fetch('/api/exercise-types.php');
+        if (!typesRes.ok) {
+          throw new Error(`Failed to fetch exercise types: HTTP ${typesRes.status}`);
+        }
+        const types = await typesRes.json();
+
+        // Extract last used weights from the enriched exercise types response
+        const weights: Record<number, number> = {};
+        types.forEach((t: any) => {
+          if (t.last_weight_lbs !== null && t.last_weight_lbs !== undefined) {
+            weights[t.id] = Number(t.last_weight_lbs);
+          }
+        });
         setLastUsedWeights(weights);
 
-        const typesRes = await fetch('/api/exercise-types.php');
-        if (!typesRes.ok) throw new Error(`HTTP ${typesRes.status}`);
-        const types = await typesRes.json();
-        setExerciseTypes(types || []);
+        // Store clean exercise types (without extra fields)
+        setExerciseTypes(types.map((t: any) => ({
+          id: t.id,
+          name: t.name
+        })));
       } catch (err) {
-        setError((err as Error).message || 'Failed to load data');
-        console.error(err);
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        setError(message);
+        console.error('Data fetch failed:', err);
       } finally {
         setLoading(false);
       }
     };
+
     fetchData();
   }, []);
 
@@ -59,12 +76,20 @@ export const useWorkoutData = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(session)
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      // Refresh
-      const updated = await fetch('/api/workouts.php').then(r => r.json());
-      setHistory(updated.workouts || []);
+
+      if (!res.ok) {
+        throw new Error(`Failed to save workout: HTTP ${res.status}`);
+      }
+
+      // Refresh history after successful save
+      const updatedRes = await fetch('/api/workouts.php');
+      if (updatedRes.ok) {
+        const updatedData = await updatedRes.json();
+        setHistory(updatedData.workouts || []);
+      }
     } catch (err) {
-      console.error('Failed to save workout', err);
+      console.error('Failed to add workout session:', err);
+      // Optionally setError here if you want to show toast/alert
     }
   };
 
