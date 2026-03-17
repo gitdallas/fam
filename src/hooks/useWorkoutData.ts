@@ -29,23 +29,18 @@ export const useWorkoutData = () => {
       setError(null);
       try {
         // Fetch workouts
-        const workoutsRes = await fetch('/api/workouts');
-        if (!workoutsRes.ok) {
-          throw new Error(`Failed to fetch workouts: HTTP ${workoutsRes.status}`);
-        }
+        const workoutsRes = await fetch('/api/workouts.php');
+        if (!workoutsRes.ok) throw new Error(`Failed to fetch workouts: HTTP ${workoutsRes.status}`);
         const workoutsData = await workoutsRes.json();
-        // Handle both direct array and { workouts: [...] } formats
         const workoutsArray = Array.isArray(workoutsData) ? workoutsData : (workoutsData.workouts || []);
         setHistory(workoutsArray);
 
-        // Fetch exercise types (includes last_weight_lbs for prefill)
-        const typesRes = await fetch('/api/workouts/exercise-types');
-        if (!typesRes.ok) {
-          throw new Error(`Failed to fetch exercise types: HTTP ${typesRes.status}`);
-        }
+        // Fetch exercise types (enriched with last_weight_lbs)
+        const typesRes = await fetch('/api/workouts/exercise-types.php');
+        if (!typesRes.ok) throw new Error(`Failed to fetch exercise types: HTTP ${typesRes.status}`);
         const types = await typesRes.json();
 
-        // Extract last used weights from the enriched exercise types response
+        // Extract last used weights from the enriched types
         const weights: Record<number, number> = {};
         types.forEach((t: any) => {
           if (t.last_weight_lbs !== null && t.last_weight_lbs !== undefined) {
@@ -54,7 +49,7 @@ export const useWorkoutData = () => {
         });
         setLastUsedWeights(weights);
 
-        // Store clean exercise types (without extra fields)
+        // Store clean exercise types for UI (only id and name)
         setExerciseTypes(types.map((t: any) => ({
           id: t.id,
           name: t.name
@@ -73,24 +68,20 @@ export const useWorkoutData = () => {
 
   const addWorkoutSession = async (session: { exercises: Omit<Exercise, 'total_reps' | 'total_volume' | 'exercise_type'>[] }) => {
     try {
-      const res = await fetch('/api/workouts', {
+      const res = await fetch('/api/workouts.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(session)
       });
 
-      if (!res.ok) {
-        throw new Error(`Failed to save workout: HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`Failed to save workout: HTTP ${res.status}`);
 
-      // Refresh history after successful save
-      const updatedRes = await fetch('/api/workouts');
+      // Refresh history after save
+      const updatedRes = await fetch('/api/workouts.php');
       if (updatedRes.ok) {
         const updatedData = await updatedRes.json();
         const updatedArray = Array.isArray(updatedData) ? updatedData : (updatedData.workouts || []);
         setHistory(updatedArray);
-      } else {
-        console.warn('Refresh fetch failed after save');
       }
     } catch (err) {
       console.error('Failed to add workout session:', err);
