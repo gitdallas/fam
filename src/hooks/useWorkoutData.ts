@@ -34,7 +34,9 @@ export const useWorkoutData = () => {
           throw new Error(`Failed to fetch workouts: HTTP ${workoutsRes.status}`);
         }
         const workoutsData = await workoutsRes.json();
-        setHistory(workoutsData.workouts || []);
+        // Handle both direct array and { workouts: [...] } formats
+        const workoutsArray = Array.isArray(workoutsData) ? workoutsData : (workoutsData.workouts || []);
+        setHistory(workoutsArray);
 
         // Fetch exercise types (includes last_weight_lbs for prefill)
         const typesRes = await fetch('/api/exercise-types.php');
@@ -85,11 +87,13 @@ export const useWorkoutData = () => {
       const updatedRes = await fetch('/api/workouts.php');
       if (updatedRes.ok) {
         const updatedData = await updatedRes.json();
-        setHistory(updatedData.workouts || []);
+        const updatedArray = Array.isArray(updatedData) ? updatedData : (updatedData.workouts || []);
+        setHistory(updatedArray);
+      } else {
+        console.warn('Refresh fetch failed after save');
       }
     } catch (err) {
       console.error('Failed to add workout session:', err);
-      // Optionally setError here if you want to show toast/alert
     }
   };
 
