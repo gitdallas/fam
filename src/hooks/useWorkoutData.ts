@@ -39,7 +39,7 @@ export const useWorkoutData = () => {
         setHistory(workoutsArray);
 
         // Fetch exercise types (includes last_weight_lbs for prefill)
-        const typesRes = await fetch('/api/exercise-types');
+        const typesRes = await fetch('/api/workouts/exercise-types');
         if (!typesRes.ok) {
           throw new Error(`Failed to fetch exercise types: HTTP ${typesRes.status}`);
         }
