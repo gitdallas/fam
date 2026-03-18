@@ -29,7 +29,7 @@ export const useWorkoutData = () => {
       setError(null);
       try {
         // Fetch workouts
-        const workoutsRes = await fetch('/api/workouts.php');
+        const workoutsRes = await fetch('/api/workouts');
         if (!workoutsRes.ok) throw new Error(`Failed to fetch workouts: HTTP ${workoutsRes.status}`);
         const workoutsData = await workoutsRes.json();
         const workoutsArray = Array.isArray(workoutsData) ? workoutsData : (workoutsData.workouts || []);
@@ -68,7 +68,7 @@ export const useWorkoutData = () => {
 
   const addWorkoutSession = async (session: { exercises: Omit<Exercise, 'total_reps' | 'total_volume' | 'exercise_type'>[] }) => {
     try {
-      const res = await fetch('/api/workouts.php', {
+      const res = await fetch('/api/workouts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(session)
@@ -77,7 +77,7 @@ export const useWorkoutData = () => {
       if (!res.ok) throw new Error(`Failed to save workout: HTTP ${res.status}`);
 
       // Refresh history after save
-      const updatedRes = await fetch('/api/workouts.php');
+      const updatedRes = await fetch('/api/workouts');
       if (updatedRes.ok) {
         const updatedData = await updatedRes.json();
         const updatedArray = Array.isArray(updatedData) ? updatedData : (updatedData.workouts || []);
